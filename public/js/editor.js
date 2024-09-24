@@ -58,9 +58,6 @@ JSONEditor.AbstractEditor.prototype.addLinks = function () {
                     h.setAttribute('class', style);
                     h.removeAttribute('style')
             }
-            if(link.id) {
-                h.setAttribute('id', link.id)
-            }
             if(link.style) {
                 h.setAttribute('style', link.style);
             }
@@ -248,6 +245,7 @@ var uid = 1;
 JSONEditor.defaults.editors.radio = class radio extends JSONEditor.AbstractEditor {
     setValue(value, initial) {
         value = this.typecast(value || '');
+
         // Sanitize value before setting it
         var sanitized = value;
         if (this.schema.enum.indexOf(sanitized) < 0) {
@@ -341,10 +339,6 @@ JSONEditor.defaults.editors.radio = class radio extends JSONEditor.AbstractEdito
                 this.label.className = this.label.className + ' req'; 
             }
         }
-
-        if (this.schema.options.infoText) {
-            this.label.setAttribute('title', this.schema.options.infoText);
-        }
         if (this.schema.description) this.description = this.theme.getFormInputDescription(this.schema.description);
 
         this.select_options = {};
@@ -373,9 +367,6 @@ JSONEditor.defaults.editors.radio = class radio extends JSONEditor.AbstractEdito
                 this.schema.options.enum_titles[i] :
                 options[i]);
             label.setAttribute('for', xid);
-            if(this.schema.options && this.schema.options.tooltips && this.schema.options.tooltips[options[i]]) {
-                label.setAttribute('title', this.schema.options.tooltips[options[i]]);
-            }
             var rdicon = null;
             if(this.options.icons && this.options.icons[options[i]]) {
                 rdicon = this.options.icons[options[i]];
@@ -433,42 +424,21 @@ JSONEditor.defaults.editors.radio = class radio extends JSONEditor.AbstractEdito
     }
 };
 
-function tzOffset(x) {
-    var offset = new Date(x).getTimezoneOffset(),
-        o = Math.abs(offset);
-    return (offset < 0 ? "+" : "-") + ("00" + Math.floor(o / 60)).slice(-2) + ":" + ("00" + (o % 60)).slice(-2);
-}
-
-// The time is displayed/set in local times in the input,
-//  but setValue, getValue use UTC. JSON output will be in UTC.
-const localTZ = (new Date).toLocaleString("en", {timeZoneName: "short"}).split(" ").pop();
+// CVE
 JSONEditor.defaults.editors.dateTime = class dateTime extends JSONEditor.defaults.editors.string{
     getValue() {
-        if (this.value && this.value.length > 0) {
-            if (this.value.match(/^\d{4}-\d{2}-\d{2}T[\d\:\.]+$/)) {
-                this.value = this.value + tzOffset(this.value);
-            }
-            var d = new Date(this.value);
-            if (d instanceof Date && !isNaN(d.getTime())) {
-                return d.toISOString();
-            } else {
-                return this.value;
-            }
+        if (this.value) {
+            return this.value + ":00.000Z";
         } else {
             return "";
         }
     }
     setValue(val) {
-        if (val && this.value.match(/^\d{4}-\d{2}-\d{2}T[\d\:\.]+$/)) {
-            val = val + tzOffset();
-        }
-        var d = new Date(val);
-        if (d instanceof Date && !isNaN(d.getTime()) && d.getTime() > 0) {
-            var x = new Date((d.getTime() - (d.getTimezoneOffset() * 60000)));
-            this.value =
-                this.input.value = x.toJSON().slice(0, 16);
+        if (val) {
+            // Drop the :00.000Z, if any
+            this.value = this.input.value = val.substring(0, 16);
         } else {
-            this.value = this.input.value = "";
+            this.value = this.input.value = val;
         }
         this.jsoneditor.notifyWatchers(this.path);
     }
@@ -476,9 +446,10 @@ JSONEditor.defaults.editors.dateTime = class dateTime extends JSONEditor.default
         this.schema.format = "datetime-local";
         super.build();
         this.input.className = "txt";
-        this.input.setAttribute("tz", localTZ);
+        this.input.setAttribute("tz", "UTC");
     }
 };
+// END CVE
 
 
 JSONEditor.defaults.editors.taglist = class taglist extends JSONEditor.defaults.editors.string {
@@ -1186,22 +1157,15 @@ function showJSONerrors(errors) {
     for (i = 0;i < errors.length; i++) {
         var e = errors[i];
         var showLabel = undefined;
-        var ee = docEditor.getEditor(e.path);
-        if (ee) {
-            if(ee.header && ee.header.innerText) {
-                showLabel = ee.header.innerText;
-            }
-            if(!showLabel && !(ee.original_schema === undefined) && !(ee.original_schema.title === undefined)) {
-                showLabel = ee.original_schema.title
-            } else {
-                showLabel = ee.getHeaderText();
-            }
+        var ee = docEditor.getEditor('root.'+e.path);
+        if (ee && ee.header && ee.header.innerText) {
+            showLabel = ee.header.innerText;
         }
         var a = document.createElement('a');
         a.setAttribute('class', 'vgi-alert')
         a.setAttribute('e_path', e.path);
         a.setAttribute('onclick', 'scroll2Err(this)');
-        a.textContent = (showLabel && showLabel.trim() ? showLabel : e.path.replace('^root.','')) + ": " + e.message;
+        a.textContent = (showLabel && showLabel.trim() ? showLabel : e.path) + ": " + e.message;
         errList.appendChild(a);
         errList.appendChild(document.createElement('br'))
     }

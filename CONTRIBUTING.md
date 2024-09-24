@@ -1,4 +1,4 @@
-Contributions to this CVE fork of Vulnogram are welcome.
+Contributions to this CVEDB fork of Vulnogram are welcome.
 
 # Coordination
 

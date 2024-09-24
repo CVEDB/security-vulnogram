@@ -8,9 +8,9 @@ const flash = require('connect-flash');
 const https = require('https');
 const pug = require('pug');
 
-// CVE
-const cve = require('./custom/cve.js')
-// END CVE
+// CVEDB
+const cvedb = require('./custom/cvedb.js')
+// END CVEDB
 
 // TODO: don't use express-session for large-scale production use
 const session = require('express-session');
@@ -104,18 +104,18 @@ require('./config/passport')(passport);
 app.use(passport.initialize());
 app.use(passport.session());
 
-// CVE
-cve.cveinit(app);
-// END CVE
+// CVEDB
+cvedb.cvedbinit(app);
+// END CVEDB
 
 // Express Messages Middleware
 // This shows error messages on the client
 app.use(require('connect-flash')());
 app.use(function (req, res, next) {
     res.locals.user = req.user || null;
-    // CVE
+    // CVEDB
     // res.locals.startTime = Date.now();
-    // END CVE
+    // END CVEDB
     res.locals.startTime = Date.now();
     res.locals.messages = require('express-messages')(req, res);
     next();
@@ -150,11 +150,11 @@ app.use(ensureConnected);
 app.use(function (req, res, next) {
     res.setHeader('X-Frame-Options', 'SAMEORIGIN');
     res.setHeader('X-XSS-Protection', '1; mode=block');
-    // CVE
+    // CVEDB
     // we don't use web integrations that need CORS, so safer to disable:
     //res.setHeader("Access-Control-Allow-Origin", "*");// XXX investigate
     //res.setHeader("Access-Control-Request-Headers", "cve-api-cna,cve-api-secret,cve-api-submitter");
-    // END CVE
+    // END CVEDB
 
     // Based on INFRA-25518
     res.setHeader('Content-Security-Policy', "default-src 'self' data: 'unsafe-inline'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://whimsy.apache.org; frame-ancestors 'self';");
@@ -170,9 +170,9 @@ app.use(function (req, res, next) {
     next()
 })
 
-// CVE
-cve.cveroutes(ensureAuthenticated, app);
-// END CVE
+// CVEDB
+cvedb.cvedbroutes(ensureAuthenticated, app);
+// END CVEDB
 
 // set up routes
 let users = require('./routes/users');
@@ -183,9 +183,9 @@ let docs = require('./routes/doc');
 
 app.locals.confOpts = {};
 
-// CVE
+// CVEDB
 app.locals.docs = {};
-// END CVE
+// END CVEDB
 
 var sections = require('./models/sections.js')();
 
@@ -193,13 +193,13 @@ for(section of sections) {
     var s = optSet(section, ['default', 'custom']);
     //var s = conf.sections[section];
     if(s.facet && s.facet.ID) {
-        // CVE
+        // CVEDB
         if (conf.sections.includes(section)){
             app.locals.confOpts[section] = s;
         }
         let r = docs(section, s);
         app.locals.docs[section] = r;
-        // END CVE
+        // END CVEDB
         app.locals.confOpts[section] = s;
         let r = docs(section, app.locals.confOpts[section]);
         app.use('/' + section, ensureAuthenticated, r.router);
